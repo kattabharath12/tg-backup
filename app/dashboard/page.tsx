@@ -16,7 +16,21 @@ export default async function DashboardPage() {
     include: {
       taxReturns: {
         orderBy: { createdAt: "desc" },
-        take: 5
+        take: 5,
+        select: {
+          id: true,
+          taxYear: true,
+          filingStatus: true,
+          currentStep: true,
+          isCompleted: true,
+          isFiled: true,
+          refundAmount: true,
+          amountOwed: true,
+          createdAt: true,
+          updatedAt: true
+          // Note: Excluding formType and selectedFormType to avoid database errors
+          // These will be added back after migration is run in production
+        }
       }
     }
   })
