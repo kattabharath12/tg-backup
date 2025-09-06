@@ -7,12 +7,32 @@ import { UserProfileValidator } from '@/src/profile/validation';
 import { FormEligibilityService } from '@/src/profile/eligibility-service';
 import { UserProfileData } from '@/src/profile/types';
 
+// Helper function to check if UserProfile table exists
+async function checkUserProfileTableExists() {
+  try {
+    await prisma.$queryRaw`SELECT to_regclass('public."UserProfile"')`;
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Check if UserProfile table exists (backward compatibility)
+    const tableExists = await checkUserProfileTableExists();
+    if (!tableExists) {
+      return NextResponse.json({ 
+        profile: null,
+        message: 'User profile feature not available - database migration required',
+        migrationRequired: true
+      });
     }
     
     // Get user profile
@@ -44,6 +64,16 @@ export async function GET(request: NextRequest) {
     
   } catch (error) {
     console.error('Error fetching user profile:', error);
+    
+    // Check if error is related to missing table
+    if (error instanceof Error && error.message.includes('relation "UserProfile" does not exist')) {
+      return NextResponse.json({ 
+        profile: null,
+        message: 'User profile feature not available - database migration required',
+        migrationRequired: true
+      });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to fetch user profile' },
       { status: 500 }
@@ -57,6 +87,15 @@ export async function POST(request: NextRequest) {
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Check if UserProfile table exists (backward compatibility)
+    const tableExists = await checkUserProfileTableExists();
+    if (!tableExists) {
+      return NextResponse.json({ 
+        error: 'User profile feature not available - database migration required',
+        migrationRequired: true
+      }, { status: 503 });
     }
     
     const body = await request.json();
@@ -139,6 +178,15 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('Error saving user profile:', error);
+    
+    // Check if error is related to missing table
+    if (error instanceof Error && error.message.includes('relation "UserProfile" does not exist')) {
+      return NextResponse.json({ 
+        error: 'User profile feature not available - database migration required',
+        migrationRequired: true
+      }, { status: 503 });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to save user profile' },
       { status: 500 }
@@ -152,6 +200,15 @@ export async function PUT(request: NextRequest) {
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Check if UserProfile table exists (backward compatibility)
+    const tableExists = await checkUserProfileTableExists();
+    if (!tableExists) {
+      return NextResponse.json({ 
+        error: 'User profile feature not available - database migration required',
+        migrationRequired: true
+      }, { status: 503 });
     }
     
     const body = await request.json();
@@ -174,6 +231,15 @@ export async function PUT(request: NextRequest) {
     
   } catch (error) {
     console.error('Error updating user profile:', error);
+    
+    // Check if error is related to missing table
+    if (error instanceof Error && error.message.includes('relation "UserProfile" does not exist')) {
+      return NextResponse.json({ 
+        error: 'User profile feature not available - database migration required',
+        migrationRequired: true
+      }, { status: 503 });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to update user profile' },
       { status: 500 }
