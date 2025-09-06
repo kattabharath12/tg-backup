@@ -1,5 +1,4 @@
 
-
 generator client {
     provider = "prisma-client-js"
     binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
@@ -50,6 +49,7 @@ model User {
     accounts      Account[]
     sessions      Session[]
     taxReturns    TaxReturn[]
+    userProfile   UserProfile? // NEW: One-to-one relationship with UserProfile
     createdAt     DateTime  @default(now())
     updatedAt     DateTime  @updatedAt
 }
@@ -62,12 +62,66 @@ model VerificationToken {
     @@unique([identifier, token])
 }
 
+// NEW: User Profile Model for Form Eligibility
+model UserProfile {
+    id                    String   @id @default(cuid())
+    userId                String   @unique
+    
+    // Basic demographic info for form eligibility
+    age                   Int?
+    dateOfBirth           DateTime?
+    residencyStatus       ResidencyStatus @default(US_CITIZEN)
+    
+    // Tax-specific profile data
+    primaryTaxYear        Int      @default(2023)
+    preferredFilingStatus FilingStatus?
+    
+    // Form eligibility flags (computed)
+    eligibleFor1040       Boolean  @default(true)
+    eligibleFor1040SR     Boolean  @default(false)  // Age 65+
+    eligibleFor1040NR     Boolean  @default(false)  // Non-residents
+    
+    // Form preferences and history
+    preferredFormType     FormType @default(FORM_1040)
+    lastUsedFormType      FormType?
+    
+    // Additional profile metadata
+    profileCompleteness   Float    @default(0.0) // 0.0 to 1.0
+    lastProfileUpdate     DateTime @default(now())
+    
+    user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    formEligibilityHistory FormEligibilityHistory[]
+    
+    createdAt             DateTime @default(now())
+    updatedAt             DateTime @updatedAt
+}
+
+// NEW: Form Eligibility History for tracking changes
+model FormEligibilityHistory {
+    id              String      @id @default(cuid())
+    userProfileId   String
+    taxYear         Int
+    formType        FormType
+    eligibilityDate DateTime    @default(now())
+    reason          String?     // Why this form became eligible/ineligible
+    isEligible      Boolean
+    
+    userProfile     UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+    
+    createdAt       DateTime    @default(now())
+}
+
 // Tax Filing Models
 model TaxReturn {
     id                String         @id @default(cuid())
     userId            String
     taxYear           Int
     filingStatus      FilingStatus
+    
+    // NEW: Form type tracking
+    formType          FormType       @default(FORM_1040)
+    selectedFormType  FormType?      // User's explicit choice if different from auto-detected
+    
     firstName         String?
     lastName          String?
     ssn               String?
@@ -228,6 +282,22 @@ enum FilingStatus {
     QUALIFYING_SURVIVING_SPOUSE
 }
 
+// NEW: Residency Status for form eligibility
+enum ResidencyStatus {
+    US_CITIZEN
+    US_RESIDENT_ALIEN
+    NON_RESIDENT_ALIEN
+    DUAL_STATUS_ALIEN
+}
+
+// NEW: Form Types for multi-form support
+enum FormType {
+    FORM_1040        // Standard form
+    FORM_1040_SR     // Senior form (65+)
+    FORM_1040_NR     // Non-resident form
+    FORM_1040_EZ     // Simplified form (deprecated but for historical data)
+}
+
 enum IncomeType {
     W2_WAGES
     INTEREST
@@ -287,4 +357,3 @@ enum EntryType {
     CREDIT
     WITHHOLDING
 }
-
