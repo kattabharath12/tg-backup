@@ -326,7 +326,7 @@ export function UserProfileForm({
             <div>
               <Label htmlFor="preferredFilingStatus">Preferred Filing Status</Label>
               <Select 
-                value={profileData.preferredFilingStatus} 
+                value={profileData.preferredFilingStatus ?? undefined} 
                 onValueChange={(value) => handleFieldChange('preferredFilingStatus', value)}
                 disabled={readonly}
               >
